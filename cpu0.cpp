@@ -1,6 +1,6 @@
 /**
 *
-*			CPU0 Simulator In C++
+*	CPU0 Simulator In C++
 *
 *	Author	aaaddress1@gmail.com aka adr
 *	Date	2016/10/23
