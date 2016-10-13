@@ -8,6 +8,7 @@
 **/
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "cpu0_op.h"
 
@@ -38,7 +39,7 @@ void simu(uint32_t ir)
 		jmpTable[ op_str ] = &&simu_op_str;
 		jmpTable[ op_lbr ] = &&simu_op_lbr;
 		jmpTable[ op_sbr ] = &&simu_op_sbr;
-		
+
 		/* init jump table for syntax A - generally operation */
 		jmpTable[ op_cmp3 ]= &&simu_op_cmp3;
 		jmpTable[ op_mov ] = &&simu_op_mov;
@@ -193,7 +194,7 @@ simu_op_sub:
 }
 
 
-int main(void) 
+int main(void)
 {
 	simu(0x13BA1000);
 	simu(0x14BA1000);
