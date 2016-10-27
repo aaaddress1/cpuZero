@@ -2,6 +2,6 @@
 
 ======
 
-It's just my homework of system program lesson. It's coded in Cplus language, but not finished, continuously updating to a real simulator.
+Just my homework for a school lesson system program. It's coded in C++ but isn't finished yet. I'm updating for the comming real simulator
 
 ![](Demo.png)
