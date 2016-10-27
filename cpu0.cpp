@@ -52,27 +52,27 @@ void simu(context *currContext)
 			printf("%08x ==> swi %d\n", ir, cx24);
 			break;
 		case op_jmp:
-			//printf("%08x ==> jmp %d\n", ir, cx24);
+			printf("%08x ==> jmp %d\n", ir, cx24);
 			currContext->r[15] += cx24;
 			break;
 		case op_jge:
-			//printf("%08x ==> jge %d\n", ir, cx24);
+			printf("%08x ==> jge %d\n", ir, cx24);
 			if (!n|z) currContext->r[15] += cx24;
 			break;
 		case op_jle:
-			//printf("%08x ==> jle %d\n", ir, cx24);
-			if (n|z) currContext->r[15] += cx24;;
+			printf("%08x ==> jle %d\n", ir, cx24);
+			if (n|z) currContext->r[15] += cx24;
 			break;
 		case op_jgt:
-			//printf("%08x ==> jgt %d\n", ir, cx24);
+			printf("%08x ==> jgt %d\n", ir, cx24);
 			if (!n) currContext->r[15] += cx24;
 			break;
 		case op_jlt:
-			//printf("%08x ==> jlt %d\n", ir, cx24);
+			printf("%08x ==> jlt %d\n", ir, cx24);
 			if (n) currContext->r[15] += cx24;
 			break;
 		case op_jne:
-			//printf("%08x ==> jne %d\n", ir, cx24);
+			printf("%08x ==> jne %d\n", ir, cx24);
 			if (!z) currContext->r[15] += cx24;
 			break;
 		case op_jeq5:
@@ -81,8 +81,8 @@ void simu(context *currContext)
 
 		/* init jump table for syntax L - load & store operation */
 		case op_ldi:
-			//printf("%08x ==> ldi r%d, r%d%+d\n", ir, ra, rb, cx16);
-			currContext->r[ra] = (size_t)(currContext->r[rb] + (size_t)cx16);
+			printf("%08x ==> ldi r%d, r%d%+d\n", ir, ra, rb, cx16);
+			currContext->r[ra] = (uint32_t)(currContext->r[rb] + (size_t)cx16);
 			break;
 		case op_ldb:
 			printf("%08x ==> ldb r%d, [r%d%+d]\n", ir, ra, rb, cx16);
@@ -94,8 +94,8 @@ void simu(context *currContext)
 			printf("%08x ==> st r%d, [r%d%+d]\n", ir, ra, rb, cx16);
 			break;
 		case op_ld2:
-			//printf("%08x ==> ld r%d, [r%d+%d]\n", ir, ra, rb, cx16);
-			currContext->r[ra] = *(size_t *)(currContext->r[rb] + (size_t)cx16);
+			printf("%08x ==> ld r%d, [r%d+%d]\n", ir, ra, rb, cx16);
+			currContext->r[ra] = *(uint32_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16);
 			break;
 
 		/* init jump table for syntax A - stack operation */
@@ -107,11 +107,12 @@ void simu(context *currContext)
 			break;
 		case op_pop:
 			printf("%08x ==> pop r%d\n", ir, ra);
+
 			break;
 		case op_push:
 			printf("%08x ==> push r%d\n", ir, ra);
-			currContext->r[13] -= sizeof(uint32_t);
-			*(uint32_t*)currContext->r[13] = currContext->r[ra];
+			currContext->r[13] -= sizeof(uint16_t);
+			*(uint16_t*)(currContext->memoryBase+currContext->r[13]) = currContext->r[ra];
 			break;
 
 		/* init jump table for syntax A - generally operation */
@@ -164,11 +165,11 @@ void simu(context *currContext)
 			break;
 		case op_add:
 			currContext->r[ra] = currContext->r[rb] + currContext->r[rc];
-			//printf("%08x ==> add r%d, r%d, r%d\n", ir, ra, rb, rc);
+			printf("%08x ==> add r%d, r%d, r%d\n", ir, ra, rb, rc);
 			break;
 		case op_sub:
 			currContext->r[ra] = currContext->r[rb] - currContext->r[rc];
-			//printf("%08x ==> sub r%d, r%d, r%d\n", ir, ra, rb, rc);
+			printf("%08x ==> sub r%d, r%d, r%d\n", ir, ra, rb, rc);
 			break;
 		default:
 			puts("unimplemented or invalid opcode. (opcode out of bounds)");
@@ -198,20 +199,27 @@ bool loadExeFile(char *filePath,context *currContext)
 		return false;
 	}
 
-	currContext->exeMapping = (size_t *)calloc(currContext->exeFileLen, sizeof(uint8_t)); 
-	currContext->endOfMapping = (size_t *)((size_t)currContext->exeMapping + currContext->exeFileLen);
-	currContext->r[15] = (size_t)currContext->exeMapping;//update program counter
+	currContext->memoryBase = (uint8_t *)calloc(0xFFFFFFFF, sizeof(uint8_t));
+	currContext->exeEntry = 0x400000;
+	currContext->r[15] = currContext->exeEntry;//update program counter
 
 	/* allow memory for sp */
-	currContext->startOfStack = (size_t *)new uint32_t[1024];
-	currContext->endOfStack = (size_t *)((size_t)currContext->startOfStack + sizeof(uint32_t)* 1024);
-	currContext->r[13] = (size_t)currContext->endOfStack;
+	currContext->startOfStack = (uint8_t *)((size_t)currContext->memoryBase + 0x000000);
+	currContext->endOfStack = (uint8_t *)((size_t)currContext->memoryBase + currContext->exeEntry);
+	currContext->r[13] = currContext->exeEntry;
 
-	fread(currContext->exeMapping , currContext->exeFileLen, sizeof(uint8_t), fin); 
+	fread
+	(
+		(uint8_t *)((size_t)currContext->memoryBase + currContext->r[15]), 
+		currContext->exeFileLen, 
+		sizeof(uint8_t), 
+		fin
+	); 
 	fclose(fin);
-
 	return true;
 }
+
+
 int main(void) 
 {
 	context *thContext = (context *)calloc(sizeof(context), sizeof(uint8_t));
@@ -223,26 +231,29 @@ int main(void)
 		exit(1);
 	}
 
-	thContext->r[10] = 1;
-	thContext->r[1] = 2;
+	thContext->r[1] = 6;
+	thContext->r[2] = 2;
 	thContext->r[12] = 0x10000000;
 
-	while ((size_t*)thContext->r[15] < thContext->endOfMapping) {
-		thContext->ir = *(uint32_t*)thContext->r[15];	//fetch code
-		thContext->r[15] += sizeof(uint32_t);			//update program counter
+	printf("Address Opcode ==> Disassembly\n");
+	while (thContext->r[15] < (thContext->exeEntry+thContext->exeFileLen)) {
+		printf("0x%08x ", thContext->r[15]);
+		thContext->ir = *(uint32_t *)((size_t)thContext->memoryBase + thContext->r[15]);//fetch code
+		thContext->r[15] += sizeof(uint32_t);//update program counter
 		simu(thContext);
 	}
 
-	puts("===\t\tRegisters\t\t===");
+	puts("\n==========\t\tRegisters\t\t==========");
 	for (int i = 0; i < 16; ++i)
-		printf("r%d = %lx\n", i, thContext->r[i]);
+		printf("r%d = %x\n", i, thContext->r[i]);
 
-	puts("===\t\tStack\t\t===");
+	puts("==========\t\tStack\t\t==========");
 	for (size_t i = 0, currStack; i < 5; ++i) {
-		currStack = thContext->r[13] + sizeof(uint32_t)*i ;
+		currStack = (size_t)thContext->memoryBase + thContext->r[13] + sizeof(uint16_t)*i ;
 		if (currStack >= (size_t)thContext->endOfStack || currStack <= (size_t)thContext->startOfStack)
-			break;
-		printf("[sp + %lu] = %x\n", i, *(uint32_t *)currStack);
+			printf("[sp + %lu] = *Dirty Space*\n", sizeof(uint16_t)*i);
+		else
+			printf("[sp + %lu] = %x\n", i, *(uint16_t *)currStack);
 	}
 	return 0;
 }

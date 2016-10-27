@@ -52,16 +52,16 @@
 struct context
 {
 	/* Generally */
-	uint32_t ir;	//	IR
-	size_t r[16];	//	register r0 - r15
-	size_t mar;		//	Memory Address Register
-	size_t mdr;		//	Memory Data Register
+	uint32_t ir;		//	IR
+	uint32_t r[16];		//	register r0 - r15
+	uint32_t mar;		//	Memory Address Register
+	uint32_t mdr;		//	Memory Data Register
 
 	/* Extend */
-	size_t *exeMapping;		//	Point to Executable File Data
-	size_t exeFileLen;		//	Executable File Length
-	size_t *endOfMapping;	//	Point to End Of File
+	uint8_t *memoryBase;
+	size_t exeEntry;			//	Offset of Executable File Data
+	uint32_t exeFileLen;		//	Executable File Length
 
-	size_t *startOfStack;	//	Point To Stack Memory
-	size_t *endOfStack;		//	Point to End Of Stack Memory
+	uint8_t *startOfStack;		//	Point To Stack Memory
+	uint8_t *endOfStack;		//	Point to End Of Stack Memory
 };
