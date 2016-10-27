@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 /* CPU0 Syntax A => Load & Store Operation */
 #define op_ldr	0x04
@@ -44,3 +47,21 @@
 #define op_swi5	0x2a
 #define	op_call	0x2b 
 #define op_ret	0x2c 
+
+/* Thread Context Define */
+struct context
+{
+	/* Generally */
+	uint32_t ir;	//	IR
+	size_t r[16];	//	register r0 - r15
+	size_t mar;		//	Memory Address Register
+	size_t mdr;		//	Memory Data Register
+
+	/* Extend */
+	size_t *exeMapping;		//	Point to Executable File Data
+	size_t exeFileLen;		//	Executable File Length
+	size_t *endOfMapping;	//	Point to End Of File
+
+	size_t *startOfStack;	//	Point To Stack Memory
+	size_t *endOfStack;		//	Point to End Of Stack Memory
+};
