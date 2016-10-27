@@ -3,7 +3,7 @@
 *	CPU0 Simulator In C++
 *
 *	Author	aaaddress1@gmail.com aka adr
-*	Date	2016/10/23
+*	Date	2016/10/28
 *
 **/
 #include <stdio.h>
@@ -15,7 +15,7 @@
 void simu(context *currContext)
 {
 	/* fetch code to cpu0 syntax */
-	uint8_t op, ra, rb, rc;
+	uint8_t op, ra, rb, rc, by;
 	uint32_t ir, cx5, cx12, cx16, cx24;
 	ir = currContext->ir;
 	op = (ir & 0xFF000000) >> 4*6;
@@ -31,7 +31,6 @@ void simu(context *currContext)
 	z = (sw & 0x70000000) >> (28 + 2);
 	c = (sw & 0x30000000) >> (28 + 1);
 	c = (sw & 0x10000000) >> (28 + 0);
-	//printf("n: %x, z: %i, c: %i\n", n, z, c);
 
 	cx5 = ir & 0x0000001F;
 	cx12 = ((int32_t)ir << 4*5) >> 4*5;
@@ -44,12 +43,17 @@ void simu(context *currContext)
 		/* init jump table for branch */
 		case op_ret:
 			printf("%08x ==> ret\n", ir);
+			currContext->r[15] = currContext->r[14];
 			break;
 		case op_call:
 			printf("%08x ==> call %d\n", ir, cx24);
+			currContext->r[14] = currContext->r[15];
+			currContext->r[15] += cx24;
 			break;
 		case op_swi5:
 			printf("%08x ==> swi %d\n", ir, cx24);
+			currContext->r[14] = currContext->r[15];
+			currContext->r[15] = cx24;
 			break;
 		case op_jmp:
 			printf("%08x ==> jmp %d\n", ir, cx24);
@@ -82,32 +86,40 @@ void simu(context *currContext)
 		/* init jump table for syntax L - load & store operation */
 		case op_ldi:
 			printf("%08x ==> ldi r%d, r%d%+d\n", ir, ra, rb, cx16);
-			currContext->r[ra] = (uint32_t)(currContext->r[rb] + (size_t)cx16);
+			currContext->r[ra] = (uint16_t)(currContext->r[rb] + (size_t)cx16);
 			break;
 		case op_ldb:
 			printf("%08x ==> ldb r%d, [r%d%+d]\n", ir, ra, rb, cx16);
+			currContext->r[ra] = *(uint8_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16);
 			break;
 		case op_stb:
 			printf("%08x ==> stb r%d, [r%d%+d]\n", ir, ra, rb, cx16);
+			*(uint8_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16) = currContext->r[ra];
 			break;
 		case op_st:
 			printf("%08x ==> st r%d, [r%d%+d]\n", ir, ra, rb, cx16);
+			*(uint16_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16) = currContext->r[ra];
 			break;
 		case op_ld2:
 			printf("%08x ==> ld r%d, [r%d+%d]\n", ir, ra, rb, cx16);
-			currContext->r[ra] = *(uint32_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16);
+			currContext->r[ra] = *(uint16_t *)(currContext->memoryBase + currContext->r[rb] + (size_t)cx16);
 			break;
 
 		/* init jump table for syntax A - stack operation */
 		case op_popb:
 			printf("%08x ==> popb r%d\n", ir, ra);
+			currContext->r[ra] = *(uint8_t*)(currContext->memoryBase+currContext->r[13]);
+			currContext->r[13] += sizeof(uint16_t);
 			break;
 		case op_pushb:
 			printf("%08x ==> pushb r%d\n", ir, ra);
+			currContext->r[13] -= sizeof(uint16_t);
+			*(uint8_t*)(currContext->memoryBase+currContext->r[13]) = (uint8_t)currContext->r[ra];
 			break;
 		case op_pop:
 			printf("%08x ==> pop r%d\n", ir, ra);
-
+			currContext->r[ra] = *(uint16_t*)(currContext->memoryBase+currContext->r[13]);
+			currContext->r[13] += sizeof(uint16_t);
 			break;
 		case op_push:
 			printf("%08x ==> push r%d\n", ir, ra);
@@ -118,50 +130,73 @@ void simu(context *currContext)
 		/* init jump table for syntax A - generally operation */
 		case op_shl:
 			printf("%08x ==> shl r%d, r%d, %d\n", ir, ra, rb, cx5);
+			by = cx5;
+			currContext->r[ra] = currContext->r[rb] << by;
 			break;
 		case op_shr:
 			printf("%08x ==> shr r%d, r%d, %d\n", ir, ra, rb, cx5);
+			by = cx5;
+			currContext->r[ra] = currContext->r[rb] >> by;
 			break;
 		case op_ror:
 			printf("%08x ==> ror r%d, r%d, %d\n", ir, ra, rb, cx5);
+			by = cx5 % sizeof(uint16_t); 
+			currContext->r[ra] = (currContext->r[rb] << by)|(currContext->r[rb] >> (sizeof(uint16_t)-by));
 			break;
 		case op_rol4:
 			printf("%08x ==> rol r%d, r%d, %d\n", ir, ra, rb, cx5);
+			by = cx5 % sizeof(uint16_t); 
+			currContext->r[ra] = (currContext->r[rb] >> by)|(currContext->r[rb] << (sizeof(uint16_t)-by));
 			break;
 		case op_and:
 			printf("%08x ==> and r%d, r%d, r%d\n", ir, ra, rb, rc);
+			currContext->r[ra] = currContext->r[rb] & currContext->r[rc];
 			break;
 		case op_or:
 			printf("%08x ==> or r%d, r%d, r%d\n", ir, ra, rb, rc);
+			currContext->r[ra] = currContext->r[rb] | currContext->r[rc];
 			break;
 		case op_xor:
 			printf("%08x ==> xor r%d, r%d, r%d\n", ir, ra, rb, rc);
+			currContext->r[ra] = currContext->r[rb] ^ currContext->r[rc];
 			break;
 		case op_div:
 			printf("%08x ==> div r%d, r%d, r%d\n", ir, ra, rb, rc);
+			currContext->r[ra] = currContext->r[rb] / currContext->r[rc];
 			break;
 		case op_mul:
 			printf("%08x ==> mul r%d, r%d, r%d\n", ir, ra, rb, rc);
+			currContext->r[ra] = currContext->r[rb] * currContext->r[rc];
 			break;
 		case op_mov:
 			printf("%08x ==> mov r%d, r%d\n", ir, ra, rb);
+			currContext->r[ra] = currContext->r[rb];
 			break;
 		case op_cmp3:
 			printf("%08x ==> cmp r%d, r%d\n", ir, ra, rb);
+			n = (((int32_t)currContext->r[ra] - (int32_t)currContext->r[rb]) < 0) & 0x01;
+			z = (!(currContext->r[ra] - currContext->r[rb])) & 0x01;
+			c = false;
+			v = false;
+			currContext->r[12] = (n << 31 | z << 30 | c << 29 | v << 28);
 			break;
 
 		/* init jump table for syntax A - load & store operation */
 		case op_sbr:
 			printf("%08x ==> sbr r%d, [r%d+r%d]\n", ir, ra, rb, rc);
+			*(uint8_t *)(currContext->memoryBase + currContext->r[rb] + currContext->r[rc]) = currContext->r[ra];
 			break;
 		case op_lbr:
 			printf("%08x ==> lbr r%d, [r%d+r%d]\n", ir, ra, rb, rc);
+			currContext->r[ra] = *(uint8_t *)(currContext->memoryBase + currContext->r[rb] + currContext->r[rc]);
 			break;
 		case op_str:
 			printf("%08x ==> str r%d, [r%d+r%d]\n", ir, ra, rb, rc);
+			*(uint16_t *)(currContext->memoryBase + currContext->r[rb] + currContext->r[rc]) = currContext->r[ra];
 			break;
 		case op_ldr:
 			printf("%08x ==> ldr r%d, [r%d+r%d]\n", ir, ra, rb, rc);
+			currContext->r[ra] = *(uint16_t *)(currContext->memoryBase + currContext->r[rb] + currContext->r[rc]);
 			break;
 		case op_add:
 			currContext->r[ra] = currContext->r[rb] + currContext->r[rc];
@@ -230,10 +265,6 @@ int main(void)
 		free(thContext);
 		exit(1);
 	}
-
-	thContext->r[1] = 6;
-	thContext->r[2] = 2;
-	thContext->r[12] = 0x10000000;
 
 	printf("Address Opcode ==> Disassembly\n");
 	while (thContext->r[15] < (thContext->exeEntry+thContext->exeFileLen)) {
